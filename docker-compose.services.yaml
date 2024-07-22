@@ -1,0 +1,79 @@
+version: "3.5"
+
+services:
+  postgres:
+    image: "postgres:latest"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=pass
+    user: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./.etc/postgres-data:/var/lib/postgresql
+    restart: unless-stopped
+    command: -p 5432
+    healthcheck:
+      test: ["CMD", "pg_isready", "-p", "5432"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+
+
+  postgresweb:
+    image: "postgres:latest"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=pass
+    user: postgres
+    ports:
+      - "5434:5434"
+    volumes:
+      - ./.etc/postgres-data:/var/lib/postgresql
+    restart: unless-stopped
+    command: -p 5434
+    healthcheck:
+      test: ["CMD", "pg_isready", "-p", "5434"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+
+  minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    ports:
+      - "9001:9001"
+      - "9000:9000"
+    volumes:
+      - .etc/minio:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://172.17.0.1:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  zookeeper:
+    image: 'bitnami/zookeeper:latest'
+    ports:
+      - '2181:2181'
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+
+  kafka:
+    image: 'bitnami/kafka:latest'
+    user: root
+    ports:
+      - '9092:9092'
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - ./Kafka:/bitnami/kafka
+    depends_on:
+      - zookeeper
